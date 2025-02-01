@@ -1,0 +1,19 @@
+<h2>Products in Category: {{ category_name }}</h2>
+<table class="table table-bordered table-striped">
+    <thead class="table-dark">
+        <tr>
+            <th>Product Name</th>
+            <th>Total Orders</th>
+            <th>Total Amount</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for product in products %}
+            <tr>
+                <td>{{ product[0] }}</td>  <!-- product_name -->
+                <td>{{ product[1] }}</td>  <!-- total_orders -->
+                <td>{{ product[2] }}</td>  <!-- total_amount -->
+            </tr>
+        {% endfor %}
+    </tbody>
+</table>

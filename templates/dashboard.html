@@ -1,0 +1,451 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<form method="GET" action="/dashboard">
+    <!-- Date Range Picker -->
+    <label for="start_date">Start Date:</label>
+    <input type="date" id="start_date" name="start_date" 
+           value="{{ start_date or min_date }}" min="{{ min_date }}" max="{{ max_date }}">
+    
+    <label for="end_date">End Date:</label>
+    <input type="date" id="end_date" name="end_date" 
+           value="{{ end_date or max_date }}" min="{{ min_date }}" max="{{ max_date }}">
+    
+    <!-- Country Filter -->
+    <label for="country">Country:</label>
+    <select id="country" name="country">
+        <option value="">All Countries</option>
+        {% for country in countries %}
+            <option value="{{ country['country'] }}" 
+                    {% if country['country'] == country_filter %}selected{% endif %}>
+                    {{ country['country'] }}
+            </option>
+        {% endfor %}
+    </select>
+
+    <button type="submit">Apply Filters</button>
+</form>
+
+<div class="dashboard-container">
+    <div class="card">
+        <h2>{{ total_customers }}</h2>
+        <p>Total Customers</p>
+    </div>
+    <div class="card">
+        <h2>{{ total_products }}</h2>
+        <p>Total Products</p>
+    </div>
+    <div class="card">
+        <h2>{{ total_orders }}</h2>
+        <p>Total Orders</p>
+    </div>
+    <div class="card">
+        <h2>{{ formatted_earned }}</h2>
+        <p>Total Earned</p>
+    </div>
+</div>
+
+<h2>Total Orders by Category</h2>
+<table class="table">
+    <thead>
+        <tr>
+            <th>Category</th>
+            <th>Total Orders</th>
+            <th>Total Earned</th>
+            <th>Action</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for category_orders in category_orders %}
+            <tr>
+                <td>{{ category_orders['category'] }}</td>
+                <td>{{ category_orders['total_orders'] }}</td>
+                <td>{{ category_orders['total_amount'] }}</td>
+                <td><button class="btn btn-info" onclick="showCategoryDetails('{{ category_orders['category'] }}')">View Details</button></td>
+            </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<!-- Filtered Table for Products by Category (Initially hidden) -->
+<div id="filteredDetails" style="display: none; margin-top: 20px;">
+    <h3>Filtered Products for Category: <span id="selectedCategory"></span></h3>
+    <table class="table table-bordered table-striped">
+        <thead class="table-dark">
+            <tr>
+                <th>Product Name</th>
+                <th>Total Orders</th>
+                <th>Total Amount</th>
+            </tr>
+        </thead>
+        <tbody id="filteredDetailsBody">
+            <!-- Filtered data will be injected here -->
+        </tbody>
+    </table>
+</div>
+
+<h2>Orders by Payment Method</h2>
+
+<!-- Chart Container -->
+<div style="width: 100%; height: 350px; display: flex; justify-content: center; align-items: center;">
+    <canvas id="paymentMethodDonutChart" width="300" height="300"></canvas>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Get the payment data passed from Flask
+    var paymentMethods = [{% for payment in payment_data %}"{{ payment['payment_method'] }}",{% endfor %}];
+    var totalOrders = [{% for payment in payment_data %}{{ payment['total_orders'] }},{% endfor %}];
+
+    var ctx = document.getElementById('paymentMethodDonutChart').getContext('2d');
+    var paymentMethodDonutChart = new Chart(ctx, {
+        type: 'doughnut', // Specify the type of chart (doughnut for donut chart)
+        data: {
+            labels: paymentMethods, // Payment methods from the data
+            datasets: [{
+                label: 'Total Orders',
+                data: totalOrders, // Total orders data
+                backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4CAF50'], // Colors for each slice
+                hoverBackgroundColor: ['#FF4560', '#4A90E2', '#FFB74D', '#66BB6A'], // Hover colors
+                borderWidth: 0, // Remove the border between slices
+            }]
+        },
+        options: {
+            responsive: true,
+            cutout: '70%', // Makes the center of the donut hollow (70% of the radius)
+            plugins: {
+                legend: {
+                    position: 'top', // Position of the legend
+                    labels: {
+                        font: {
+                            size: 12 // Smaller font size for the legend
+                        }
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(tooltipItem) {
+                            return tooltipItem.label + ': ' + tooltipItem.raw + ' orders'; // Display the number of orders in tooltip
+                        }
+                    }
+                }
+            }
+        }
+    });
+</script>
+
+
+<!-- Include Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<h2>Total Orders by Hour</h2>
+
+<!-- Create a canvas for the line chart with smaller height -->
+<canvas id="ordersByHourChart" width="400" height="100"></canvas>
+
+<script>
+    // Data for the chart (will be populated from Flask)
+    var timeWiseData = {{ time_wise_data | tojson }};
+    
+    // Prepare data for the chart
+    var labels = [];
+    var data = [];
+
+    // Loop through the time_wise_data and prepare the data for the chart
+    timeWiseData.forEach(function(item) {
+        labels.push(item['order_hour']);
+        data.push(item['total_orders']);
+    });
+
+    // Create the line chart using Chart.js
+    var ctx = document.getElementById('ordersByHourChart').getContext('2d');
+    var ordersByHourChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels, // x-axis labels (order hours)
+            datasets: [{
+                label: 'Total Orders', // Chart label
+                data: data, // y-axis values (total orders)
+                borderColor: 'rgba(75, 192, 192, 1)', // Line color
+                backgroundColor: 'rgba(75, 192, 192, 0.2)', // Area under the line color
+                fill: true, // Fill the area under the line
+                tension: 0.1 // Line smoothness
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true // Start y-axis from zero
+                }
+            }
+        }
+    });
+</script>
+
+
+<div class="container mt-5">
+    <h2 class="text-center mb-4">Orders by Date</h2>
+
+    <!-- Date Range Picker & Filter -->
+    <div class="text-center mb-3">
+        <label for="timeFilter">View by:</label>
+        <select id="timeFilter" class="form-select w-auto d-inline-block">
+            <option value="auto">Auto (Best Fit)</option>
+            <option value="daily">Daily</option>
+            <option value="weekly">Weekly</option>
+            <option value="monthly">Monthly</option>
+        </select>
+        <input type="month" id="startDate" class="form-control w-auto d-inline-block">
+        <input type="month" id="endDate" class="form-control w-auto d-inline-block">
+        <button id="applyFilter" class="btn btn-primary">Apply</button>
+    </div>
+
+    <!-- Line Chart -->
+    <canvas id="datewiseChart" style="max-height: 400px;"></canvas>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+    let datewiseData = {{ datewise_data|tojson }};
+    console.log("Datewise Data:", datewiseData);
+
+    // Convert and Sort Data
+    datewiseData = datewiseData.map(item => ({
+        order_date: new Date(item.order_date),
+        total_orders: item.total_orders
+    })).sort((a, b) => a.order_date - b.order_date);
+
+    function formatDate(date) {
+        return date.toISOString().split('T')[0];
+    }
+
+    function groupByWeek(data) {
+        let weeklyData = {};
+        data.forEach(item => {
+            let weekStart = new Date(item.order_date);
+            weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+            let weekKey = formatDate(weekStart);
+            weeklyData[weekKey] = (weeklyData[weekKey] || 0) + item.total_orders;
+        });
+        return Object.entries(weeklyData).map(([week, total]) => ({ order_date: week, total_orders: total }));
+    }
+
+    function groupByMonth(data) {
+        let monthlyData = {};
+        data.forEach(item => {
+            let monthKey = item.order_date.getFullYear() + "-" + (item.order_date.getMonth() + 1);
+            monthlyData[monthKey] = (monthlyData[monthKey] || 0) + item.total_orders;
+        });
+        return Object.entries(monthlyData).map(([month, total]) => ({ order_date: month, total_orders: total }));
+    }
+
+    let chartInstance;
+    function renderChart(filteredData) {
+        let labels = filteredData.map(item => item.order_date);
+        let dataValues = filteredData.map(item => item.total_orders);
+
+        if (chartInstance) chartInstance.destroy();
+        const ctx = document.getElementById('datewiseChart').getContext('2d');
+        chartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Total Orders',
+                    data: dataValues,
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                    fill: false,
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { title: { display: true, text: 'Date' } },
+                    y: { beginAtZero: true, title: { display: true, text: 'Total Orders' } }
+                }
+            }
+        });
+    }
+
+    function filterData(timeFilter, start, end) {
+        let filteredData = datewiseData.filter(item => item.order_date >= start && item.order_date <= end);
+
+        if (timeFilter === "weekly") filteredData = groupByWeek(filteredData);
+        else if (timeFilter === "monthly") filteredData = groupByMonth(filteredData);
+        else if (timeFilter === "auto") {
+            let rangeMonths = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth());
+            filteredData = rangeMonths > 6 ? groupByMonth(filteredData) : filteredData;
+        }
+
+        renderChart(filteredData.map(item => ({ order_date: formatDate(item.order_date), total_orders: item.total_orders })));
+    }
+
+    document.getElementById("applyFilter").addEventListener("click", function() {
+        let timeFilter = document.getElementById("timeFilter").value;
+        let start = new Date(document.getElementById("startDate").value + "-01");
+        let end = new Date(document.getElementById("endDate").value + "-01");
+        end.setMonth(end.getMonth() + 1, 0);
+        filterData(timeFilter, start, end);
+    });
+
+    document.getElementById("timeFilter").addEventListener("change", function() {
+        let start = new Date(document.getElementById("startDate").value + "-01");
+        let end = new Date(document.getElementById("endDate").value + "-01");
+        end.setMonth(end.getMonth() + 1, 0);
+        filterData(this.value, start, end);
+    });
+
+    let minDate = datewiseData[0].order_date;
+    let maxDate = datewiseData[datewiseData.length - 1].order_date;
+    document.getElementById("startDate").value = minDate.toISOString().slice(0, 7);
+    document.getElementById("endDate").value = maxDate.toISOString().slice(0, 7);
+
+    filterData("auto", minDate, maxDate);
+</script>
+
+
+<script>
+function showCategoryDetails(categoryName) {
+    document.getElementById("selectedCategory").textContent = categoryName;
+    
+    fetch(`/category/details/${categoryName}`)
+        .then(response => response.json())
+        .then(data => {
+            const tableBody = document.getElementById("filteredDetailsBody");
+            tableBody.innerHTML = "";
+
+            data.forEach(product => {
+                const row = document.createElement("tr");
+                row.innerHTML = `
+                    <td>${product.product_name}</td>
+                    <td>${product.total_orders}</td>
+                    <td>${product.total_amount}</td>
+                `;
+                tableBody.appendChild(row);
+            });
+
+            document.getElementById("filteredDetails").style.display = "block";
+        })
+        .catch(error => {
+            console.error("Error fetching filtered data:", error);
+        });
+}
+</script>
+
+<div class="container mt-5">
+    <h2 class="text-center mb-4">Top 5 Products by Total Amount</h2>
+    <table class="table table-bordered table-striped">
+        <thead class="table-dark">
+            <tr>
+                <th>Product Name</th>
+                <th>Category</th>
+                <th>Total Orders</th>
+                <th>Total Amount</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for most_sold in most_sold %}
+            <tr>
+                <td>{{ most_sold.product_name }}</td>
+                <td>{{ most_sold.category }}</td>
+                <td>{{ most_sold.total_orders }}</td>
+                <td>{{ most_sold.total_amount }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="container mt-5">
+        <h2 class="text-center mb-4">Countrywise Sales</h2>
+    
+        <!-- Country Sales Table -->
+        <div id="countrySalesTable" style="margin-top: 20px;">
+            <table class="table table-bordered table-striped">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Country</th>
+                        <th>Total Orders</th>
+                        <th>Total Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for country_details in country_details %}
+                    <tr>
+                        <td>{{ country_details.country }}</td>
+                        <td>{{ country_details.total_orders }}</td>
+                        <td>{{ country_details.total_amount }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+<style>
+    body {
+        background-color: #f4f4f9;
+        font-family: Arial, sans-serif;
+    }
+
+    .dashboard-container {
+        display: flex;
+        justify-content: space-around;
+        align-items: center;
+        margin-top: 30px;
+        gap: 10px;
+        flex-wrap: wrap; /* Makes it responsive */
+    }
+
+    .card {
+        background-color: white;
+        width: 200px; /* Smaller width */
+        padding: 15px; /* Reduced padding */
+        border-radius: 8px; /* Slightly rounded corners */
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        text-align: center;
+    }
+
+    .card h2 {
+        font-size: 35px; /* Reduced font size */
+        color: #4CAF50;
+        margin: 0;
+    }
+
+    .card p {
+        font-size: 14px; /* Smaller text */
+        color: #555;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+    }
+
+    th, td {
+        padding: 10px;
+        text-align: left;
+    }
+
+    thead {
+        background-color: #333;
+        color: #fff;
+    }
+
+    tbody tr:nth-child(even) {
+        background-color: #f2f2f2;
+    }
+
+    #countrySalesChart {
+        max-width: 100%;
+        height: auto;
+    }
+</style>
+
+{% endblock %}

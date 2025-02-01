@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <h1 class="text-center">Product List</h1>
+
+    <!-- Filters Section -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <label for="categoryFilter" class="form-label">Filter by Category</label>
+            <select id="categoryFilter" class="form-select">
+                <option value="">All Categories</option>
+                {% for category in categories %}
+                    <option value="{{ category }}">{{ category }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-4">
+            <label for="brandFilter" class="form-label">Filter by Brand</label>
+            <select id="brandFilter" class="form-select">
+                <option value="">All Brands</option>
+                {% for brand in brands %}
+                    <option value="{{ brand }}">{{ brand }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-4">
+            <label for="currencyFilter" class="form-label">Select Currency</label>
+            <select id="currencyFilter" class="form-select">
+                {% for currency in currencies %}
+                    <option value="{{ currency }}">{{ currency }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+
+    <!-- Products Table -->
+    <div class="table-responsive">
+        <table id="productsTable" class="table table-bordered table-striped">
+            <thead>
+                <tr>
+                    <th>Product Name</th>
+                    <th>Category</th>
+                    <th>Brand</th>
+                    <th>Price</th>
+                    <th>Stock</th>
+                    <th>Rating</th>
+                    <th>Size</th>
+                    <th>Dimensions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for product in products %}
+                    <tr data-category="{{ product['category'] }}" data-brand="{{ product['brand'] }}">
+                        <td>{{ product['product_name'] }}</td>
+                        <td>{{ product['category'] }}</td>
+                        <td>{{ product['brand'] }}</td>
+                        <td class="price">${{ product['price'] }}</td>
+                        <td>{{ product['stock_availability'] }}</td>
+                        <td>{{ product['rating'] }}</td>
+                        <td>{{ product['size'] if product['category'] == 'Clothing' else 'N/A' }}</td>
+                        <td>{{ product['dimensions'] if product['category'] == 'Furniture' else 'N/A' }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+<nav aria-label="Page navigation">
+    <ul class="pagination justify-content-center">
+        <!-- Previous Button -->
+        <li class="page-item {% if current_page == 1 %}disabled{% endif %}">
+            <a class="page-link" href="{{ url_for('get_products', page=current_page - 1) }}" aria-label="Previous">
+                <span aria-hidden="true">&laquo; Previous</span>
+            </a>
+        </li>
+
+        <!-- Next Button -->
+        <li class="page-item {% if current_page == total_pages %}disabled{% endif %}">
+            <a class="page-link" href="{{ url_for('get_products', page=current_page + 1) }}" aria-label="Next">
+                <span aria-hidden="true">Next &raquo;</span>
+            </a>
+        </li>
+    </ul>
+</nav>
+
+
+<script>
+    const currencyRates = {
+        "USD": 1,
+        "EUR": 0.85,
+        "INR": 73.5
+    };
+
+    document.getElementById('currencyFilter').addEventListener('change', function () {
+        const selectedCurrency = this.value;
+        const rate = currencyRates[selectedCurrency];
+        const prices = document.querySelectorAll('.price');
+
+        prices.forEach(priceCell => {
+            const priceInUSD = parseFloat(priceCell.textContent.replace('$', ''));
+            const convertedPrice = (priceInUSD * rate).toFixed(2);
+            priceCell.textContent = `${selectedCurrency} ${convertedPrice}`;
+        });
+    });
+
+    document.getElementById('categoryFilter').addEventListener('change', filterProducts);
+    document.getElementById('brandFilter').addEventListener('change', filterProducts);
+
+    function filterProducts() {
+        const category = document.getElementById('categoryFilter').value.toLowerCase();
+        const brand = document.getElementById('brandFilter').value.toLowerCase();
+
+        const rows = document.querySelectorAll('#productsTable tbody tr');
+        rows.forEach(row => {
+            const rowCategory = row.getAttribute('data-category').toLowerCase();
+            const rowBrand = row.getAttribute('data-brand').toLowerCase();
+
+            if ((category === '' || rowCategory === category) &&
+                (brand === '' || rowBrand === brand)) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    }
+</script>
+{% endblock %}
